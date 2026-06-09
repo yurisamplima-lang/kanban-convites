@@ -23,9 +23,12 @@ export default function ChatModal({ lead, onFechar }) {
 
   useEffect(() => {
     buscarMensagens();
-    const intervalo = setInterval(buscarMensagens, 5000);
-    return () => clearInterval(intervalo);
-  }, [buscarMensagens]);
+    const channel = supabase
+      .channel(`messages-${lead.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `lead_id=eq.${lead.id}` }, buscarMensagens)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [buscarMensagens, lead.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
