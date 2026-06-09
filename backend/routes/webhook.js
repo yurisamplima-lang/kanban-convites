@@ -15,21 +15,24 @@ async function processarEvento(payload) {
   if (!event || !['messages.upsert', 'MESSAGES_UPSERT'].includes(event)) return;
 
   const data = payload.data || payload;
-  const message = data.message || data.messages?.[0];
-  if (!message) return;
 
-  if (message.key?.fromMe || message.fromMe) return;
+  // Evolution API v2: data = { key, pushName, message, ... }
+  // Evolution API v1: data = { messages: [...] }
+  const msg = (data.key && data.message) ? data : (data.messages?.[0]);
+  if (!msg) return;
 
-  const remoteJid = message.key?.remoteJid || message.remoteJid || '';
+  if (msg.key?.fromMe || msg.fromMe) return;
+
+  const remoteJid = msg.key?.remoteJid || msg.remoteJid || '';
   if (remoteJid.includes('@g.us')) return;
 
   const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
   if (!phone || phone.includes('status') || phone.includes('broadcast')) return;
 
   const conteudo =
-    message.message?.conversation ||
-    message.message?.extendedTextMessage?.text ||
-    message.message?.imageMessage?.caption ||
+    msg.message?.conversation ||
+    msg.message?.extendedTextMessage?.text ||
+    msg.message?.imageMessage?.caption ||
     '[mídia]';
   if (!conteudo) return;
 
@@ -39,7 +42,7 @@ async function processarEvento(payload) {
   let { data: lead } = await supabase.from('leads').select('*').eq('phone', phone).single();
 
   if (!lead) {
-    const nome = message.pushName || phone;
+    const nome = msg.pushName || phone;
     const { data: novo } = await supabase
       .from('leads')
       .insert({ phone, name: nome, coluna: 'lead_convites' })
@@ -60,13 +63,9 @@ async function processarEvento(payload) {
 
   // Atualiza timestamp e nome se necessário
   const updates = { updated_at: new Date().toISOString() };
-  if (message.pushName && lead.name === phone) updates.name = message.pushName;
+  if (msg.pushName && lead.name === phone) updates.name = msg.pushName;
   await supabase.from('leads').update(updates).eq('id', lead.id);
 
-  // Gera resumo com IA
-  atualizarResumo(lead.id).catch(err =>
-    console.error('[IA] Erro resumo:', err.message)
-  );
 }
 
 async function atualizarResumo(leadId) {
