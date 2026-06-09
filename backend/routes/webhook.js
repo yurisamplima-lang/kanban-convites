@@ -3,7 +3,7 @@ const router = express.Router();
 const supabase = require('../database');
 
 router.post('/', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({ status: 'ok', v: 2 });
   processarEvento(req.body).catch(err =>
     console.error('[Webhook] Erro:', err.message)
   );
