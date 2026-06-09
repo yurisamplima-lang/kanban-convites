@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../database');
-const { gerarResumo } = require('../services/anthropic');
 
 router.post('/', (req, res) => {
   res.status(200).json({ status: 'ok' });
@@ -66,23 +65,6 @@ async function processarEvento(payload) {
   if (msg.pushName && lead.name === phone) updates.name = msg.pushName;
   await supabase.from('leads').update(updates).eq('id', lead.id);
 
-}
-
-async function atualizarResumo(leadId) {
-  const { data: mensagens } = await supabase
-    .from('messages')
-    .select('content, from_customer')
-    .eq('lead_id', leadId)
-    .order('timestamp', { ascending: true })
-    .limit(20);
-
-  if (!mensagens?.length) return;
-
-  const resumo = await gerarResumo(mensagens);
-  if (resumo) {
-    await supabase.from('leads').update({ resumo }).eq('id', leadId);
-    console.log(`[IA] Resumo lead ${leadId}: ${resumo}`);
-  }
 }
 
 module.exports = router;
