@@ -5,6 +5,7 @@ const cors = require('cors');
 const leadsRouter = require('./routes/leads');
 const messagesRouter = require('./routes/messages');
 const webhookRouter = require('./routes/webhook');
+const metaAdsRouter = require('./routes/metaads');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +26,7 @@ app.use((req, res, next) => {
 app.use('/leads', leadsRouter);
 app.use('/messages', messagesRouter);
 app.use('/webhook', webhookRouter);
+app.use('/metaads', metaAdsRouter);
 
 // Health check
 app.get('/health', (req, res) => {
