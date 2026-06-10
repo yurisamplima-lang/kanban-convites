@@ -13,7 +13,7 @@ router.post('/', (req, res) => {
   );
 });
 
-async function baixarAudio(msg) {
+async function baixarMidia(msg) {
   try {
     const resp = await fetch(`${EVOLUTION_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE}`, {
       method: 'POST',
@@ -21,11 +21,11 @@ async function baixarAudio(msg) {
       body: JSON.stringify({ message: { key: msg.key, message: msg.message }, convertToMp4: false })
     });
     const json = await resp.json();
-    console.log('[Audio] Resposta Evolution:', JSON.stringify(json).slice(0, 200));
-    return json.base64 || json.audio || null;
+    console.log('[Mídia] Resposta Evolution:', JSON.stringify(json).slice(0, 100));
+    return { base64: json.base64 || null, mimetype: json.mimetype || null };
   } catch (err) {
-    console.error('[Audio] Erro download:', err.message);
-    return null;
+    console.error('[Mídia] Erro download:', err.message);
+    return { base64: null, mimetype: null };
   }
 }
 
@@ -47,13 +47,16 @@ async function processarEvento(payload) {
 
   // Detecta tipo de mensagem
   const isAudio = !!(msg.message?.audioMessage || msg.message?.ptvMessage);
+  const isImage = !!(msg.message?.imageMessage);
+  const isMedia = isAudio || isImage;
   const conteudo = isAudio
     ? '[áudio]'
+    : isImage
+    ? (msg.message.imageMessage.caption || '[imagem]')
     : msg.message?.conversation ||
       msg.message?.extendedTextMessage?.text ||
-      msg.message?.imageMessage?.caption ||
       '[mídia]';
-  if (!conteudo && !isAudio) return;
+  if (!conteudo && !isMedia) return;
 
   console.log(`[Webhook] ${fromMe ? 'Enviado' : 'Recebido'} ${phone}: ${isAudio ? '[ÁUDIO]' : conteudo.slice(0, 80)}`);
 
@@ -72,18 +75,21 @@ async function processarEvento(payload) {
   }
   if (!lead) return;
 
-  // Baixa base64 do áudio se necessário
+  // Baixa base64 de mídia se necessário
   let mediaData = null;
-  if (isAudio) {
-    mediaData = await baixarAudio(msg);
+  let mediaMime = null;
+  if (isMedia) {
+    const resultado = await baixarMidia(msg);
+    mediaData = resultado.base64;
+    mediaMime = resultado.mimetype;
   }
 
   await supabase.from('messages').insert({
     lead_id: lead.id,
     content: conteudo,
     from_customer: fromMe ? 0 : 1,
-    media_type: isAudio ? 'audio' : 'text',
-    media_data: mediaData
+    media_type: isAudio ? 'audio' : isImage ? 'image' : 'text',
+    media_data: mediaData ? `${mediaMime || ''}|${mediaData}` : null
   });
 
   const updates = { updated_at: new Date().toISOString() };

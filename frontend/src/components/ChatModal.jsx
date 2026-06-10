@@ -128,16 +128,31 @@ export default function ChatModal({ lead: leadInicial, onFechar }) {
               {mensagens.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.from_customer ? 'justify-start' : 'justify-end'}`}>
                   <div className={`max-w-xs px-3 py-2 rounded-2xl text-sm ${msg.from_customer ? 'bg-gray-700 text-gray-100 rounded-tl-sm' : 'bg-pink-600 text-white rounded-tr-sm'}`}>
-                    {msg.media_type === 'audio' && msg.media_data ? (
-                      <audio controls className="max-w-[220px] h-8" style={{filter: msg.from_customer ? 'none' : 'invert(1) brightness(2)'}}>
-                        <source src={`data:audio/ogg;base64,${msg.media_data}`} type="audio/ogg" />
-                        <source src={`data:audio/mpeg;base64,${msg.media_data}`} type="audio/mpeg" />
-                      </audio>
-                    ) : msg.media_type === 'audio' ? (
-                      <p className="text-xs opacity-70">🎤 Áudio</p>
-                    ) : (
-                      <p className="break-words">{msg.content}</p>
-                    )}
+                    {(() => {
+                      const [mime, b64] = msg.media_data ? msg.media_data.split('|') : [null, null];
+                      if (msg.media_type === 'audio' && b64) {
+                        const audioMime = mime && mime.includes('audio') ? mime : 'audio/ogg';
+                        return (
+                          <audio controls className="max-w-[220px] h-8">
+                            <source src={`data:${audioMime};base64,${b64}`} type={audioMime} />
+                          </audio>
+                        );
+                      }
+                      if (msg.media_type === 'image' && b64) {
+                        const imgMime = mime && mime.includes('image') ? mime : 'image/jpeg';
+                        return (
+                          <img
+                            src={`data:${imgMime};base64,${b64}`}
+                            alt="imagem"
+                            className="max-w-[220px] rounded-lg cursor-pointer"
+                            onClick={() => window.open(`data:${imgMime};base64,${b64}`)}
+                          />
+                        );
+                      }
+                      if (msg.media_type === 'audio') return <p className="text-xs opacity-70">🎤 Áudio</p>;
+                      if (msg.media_type === 'image') return <p className="text-xs opacity-70">🖼️ Imagem</p>;
+                      return <p className="break-words">{msg.content}</p>;
+                    })()}
                     <p className={`text-xs mt-1 ${msg.from_customer ? 'text-gray-400' : 'text-pink-200'}`}>{fmt(msg.timestamp)}</p>
                   </div>
                 </div>
