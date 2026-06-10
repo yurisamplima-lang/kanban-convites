@@ -13,6 +13,9 @@ export default function ChatModal({ lead: leadInicial, onFechar }) {
   const [erro, setErro] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [notasExpandido, setNotasExpandido] = useState(false);
+  const [tiposConvite, setTiposConvite] = useState([]);
+  const [novoTipo, setNovoTipo] = useState('');
+  const [adicionandoTipo, setAdicionandoTipo] = useState(false);
   const [info, setInfo] = useState({
     notas: leadInicial.notas || '',
     tipo_convite: leadInicial.tipo_convite || '',
@@ -20,6 +23,22 @@ export default function ChatModal({ lead: leadInicial, onFechar }) {
     entrada_paga: leadInicial.entrada_paga || '',
   });
   const bottomRef = useRef(null);
+
+  useEffect(() => {
+    supabase.from('tipos_convite').select('nome').order('nome').then(({ data }) => {
+      if (data) setTiposConvite(data.map(t => t.nome));
+    });
+  }, []);
+
+  const adicionarTipo = async () => {
+    if (!novoTipo.trim()) return;
+    await supabase.from('tipos_convite').insert({ nome: novoTipo.trim() });
+    setTiposConvite(prev => [...prev, novoTipo.trim()].sort());
+    setInfo(p => ({ ...p, tipo_convite: novoTipo.trim() }));
+    setNovoTipo('');
+    setAdicionandoTipo(false);
+    salvarInfo();
+  };
 
   const buscarMensagens = useCallback(async () => {
     const { data } = await supabase
@@ -201,13 +220,32 @@ export default function ChatModal({ lead: leadInicial, onFechar }) {
             {/* Tipo de convite */}
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Tipo de Convite</p>
-              <input
-                value={info.tipo_convite}
-                onChange={e => setInfo(p => ({ ...p, tipo_convite: e.target.value }))}
-                onBlur={salvarInfo}
-                placeholder="Ex: Casamento, Aniversário..."
-                className="w-full bg-gray-800 text-gray-100 placeholder-gray-500 rounded-xl px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none transition-colors"
-              />
+              {adicionandoTipo ? (
+                <div className="flex gap-1">
+                  <input
+                    autoFocus
+                    value={novoTipo}
+                    onChange={e => setNovoTipo(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') adicionarTipo(); if (e.key === 'Escape') setAdicionandoTipo(false); }}
+                    placeholder="Nome do tipo..."
+                    className="flex-1 bg-gray-800 text-gray-100 placeholder-gray-500 rounded-xl px-3 py-2 text-sm border border-purple-500 focus:outline-none"
+                  />
+                  <button onClick={adicionarTipo} className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-sm">✓</button>
+                  <button onClick={() => setAdicionandoTipo(false)} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm">✕</button>
+                </div>
+              ) : (
+                <div className="flex gap-1">
+                  <select
+                    value={info.tipo_convite}
+                    onChange={e => { setInfo(p => ({ ...p, tipo_convite: e.target.value })); setTimeout(salvarInfo, 100); }}
+                    className="flex-1 bg-gray-800 text-gray-100 rounded-xl px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none"
+                  >
+                    <option value="">Selecionar...</option>
+                    {tiposConvite.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <button onClick={() => setAdicionandoTipo(true)} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm" title="Novo tipo">+</button>
+                </div>
+              )}
             </div>
 
             {/* Financeiro */}
