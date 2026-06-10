@@ -20,7 +20,7 @@ async function processarEvento(payload) {
   const msg = (data.key && data.message) ? data : (data.messages?.[0]);
   if (!msg) return;
 
-  if (msg.key?.fromMe || msg.fromMe) return;
+  const fromMe = msg.key?.fromMe || msg.fromMe || false;
 
   const remoteJid = msg.key?.remoteJid || msg.remoteJid || '';
   if (remoteJid.includes('@g.us')) return;
@@ -35,12 +35,13 @@ async function processarEvento(payload) {
     '[mídia]';
   if (!conteudo) return;
 
-  console.log(`[Webhook] Mensagem de ${phone}: ${conteudo.slice(0, 80)}`);
+  console.log(`[Webhook] ${fromMe ? 'Enviado' : 'Recebido'} ${phone}: ${conteudo.slice(0, 80)}`);
 
-  // Busca ou cria lead
+  // Busca ou cria lead (só cria se for mensagem do cliente)
   let { data: lead } = await supabase.from('leads').select('*').eq('phone', phone).single();
 
   if (!lead) {
+    if (fromMe) return; // Não cria lead para mensagens enviadas para desconhecidos
     const nome = msg.pushName || phone;
     const { data: novo } = await supabase
       .from('leads')
@@ -53,11 +54,11 @@ async function processarEvento(payload) {
 
   if (!lead) return;
 
-  // Salva mensagem
+  // Salva mensagem (from_customer: 1 = cliente, 0 = você)
   await supabase.from('messages').insert({
     lead_id: lead.id,
     content: conteudo,
-    from_customer: 1
+    from_customer: fromMe ? 0 : 1
   });
 
   // Atualiza timestamp e nome se necessário
