@@ -18,11 +18,13 @@ async function baixarAudio(msg) {
     const resp = await fetch(`${EVOLUTION_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE}`, {
       method: 'POST',
       headers: { 'apikey': EVOLUTION_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: msg.key, convertToMp4: false })
+      body: JSON.stringify({ message: { key: msg.key, message: msg.message }, convertToMp4: false })
     });
     const json = await resp.json();
-    return json.base64 || null;
-  } catch {
+    console.log('[Audio] Resposta Evolution:', JSON.stringify(json).slice(0, 200));
+    return json.base64 || json.audio || null;
+  } catch (err) {
+    console.error('[Audio] Erro download:', err.message);
     return null;
   }
 }
