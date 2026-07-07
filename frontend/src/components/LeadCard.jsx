@@ -37,6 +37,7 @@ export default function LeadCard({ lead, onAbrirChat }) {
       style={style}
       {...listeners}
       {...attributes}
+      data-card="true"
       className="bg-gray-800 rounded-xl p-3 border border-gray-700 hover:border-gray-500 transition-all select-none"
     >
       {/* Header do card */}

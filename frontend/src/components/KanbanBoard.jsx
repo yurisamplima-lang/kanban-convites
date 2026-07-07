@@ -4,14 +4,17 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter
+  pointerWithin,
+  rectIntersection
 } from '@dnd-kit/core';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import KanbanColumn from './KanbanColumn';
 import LeadCard from './LeadCard';
 
 // Definição das colunas na ordem correta
 export const COLUNAS = [
+  { id: 'ignorar',        label: 'Ignorar',               cor: 'border-gray-500',   badge: 'bg-gray-800 text-gray-400' },
+  { id: 'sem_interesse',  label: 'Sem Interesse',         cor: 'border-red-700',    badge: 'bg-red-900 text-red-300' },
   { id: 'lead_convites',  label: 'Lead Convites',        cor: 'border-blue-500',   badge: 'bg-blue-900 text-blue-300' },
   { id: 'interesse',      label: 'Pessoas com Interesse', cor: 'border-yellow-500', badge: 'bg-yellow-900 text-yellow-300' },
   { id: 'followup',       label: 'Pessoas p/ Followup',  cor: 'border-orange-500', badge: 'bg-orange-900 text-orange-300' },
@@ -21,10 +24,42 @@ export const COLUNAS = [
 
 export default function KanbanBoard({ leads, onMover, onAbrirChat }) {
   const [cardArrastando, setCardArrastando] = useState(null);
+  const scrollRef = useRef(null);
+  const isDraggingScroll = useRef(false);
+  const startX = useRef(0);
+  const startScrollLeft = useRef(0);
+
+  const scroll = (dir) => {
+    scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
+  };
+
+  const onMouseDown = (e) => {
+    // só ativa se clicar no fundo (não em card, botão, etc)
+    if (e.target.closest('[data-card]') || e.target.closest('button')) return;
+    isDraggingScroll.current = true;
+    startX.current = e.clientX;
+    startScrollLeft.current = scrollRef.current.scrollLeft;
+    scrollRef.current.style.cursor = 'grabbing';
+    scrollRef.current.style.userSelect = 'none';
+  };
+
+  const onMouseMove = (e) => {
+    if (!isDraggingScroll.current) return;
+    const dx = e.clientX - startX.current;
+    scrollRef.current.scrollLeft = startScrollLeft.current - dx;
+  };
+
+  const onMouseUp = () => {
+    isDraggingScroll.current = false;
+    if (scrollRef.current) {
+      scrollRef.current.style.cursor = 'grab';
+      scrollRef.current.style.userSelect = '';
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 } // 5px antes de ativar drag
+      activationConstraint: { distance: 8 }
     })
   );
 
@@ -49,11 +84,34 @@ export default function KanbanBoard({ leads, onMover, onAbrirChat }) {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: 'calc(100vh - 120px)' }}>
+      <div className="relative">
+        {/* Seta esquerda */}
+        <button
+          onClick={() => scroll(-1)}
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-40 w-9 h-20 bg-gray-800/90 hover:bg-gray-700 border border-gray-600 rounded-r-xl flex items-center justify-center text-2xl text-gray-300 hover:text-white transition-all shadow-lg"
+        >
+          ‹
+        </button>
+        {/* Seta direita */}
+        <button
+          onClick={() => scroll(1)}
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 w-9 h-20 bg-gray-800/90 hover:bg-gray-700 border border-gray-600 rounded-l-xl flex items-center justify-center text-2xl text-gray-300 hover:text-white transition-all shadow-lg"
+        >
+          ›
+        </button>
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto pb-4 px-10 scrollbar-hide"
+        style={{ minHeight: 'calc(100vh - 120px)', cursor: 'grab' }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+      >
         {COLUNAS.map(coluna => (
           <KanbanColumn
             key={coluna.id}
@@ -62,6 +120,7 @@ export default function KanbanBoard({ leads, onMover, onAbrirChat }) {
             onAbrirChat={onAbrirChat}
           />
         ))}
+      </div>
       </div>
 
       {/* Card fantasma durante o arrastar */}
