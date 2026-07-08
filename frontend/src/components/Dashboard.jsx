@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 
-const BACKEND_URL = 'https://kanban-convites-production.up.railway.app';
+const BACKEND_URL = 'https://kanban-convites-production-d7d4.up.railway.app';
 
 function fmt(v) {
   return `R$ ${(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
